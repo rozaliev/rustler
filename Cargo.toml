@@ -2,3 +2,7 @@
 name = "rustler"
 version = "0.1.0"
 authors = ["Evgeny Rozaliev <rozaliev@gmail.com>"]
+
+
+[dependencies]
+clippy = "0.0.22"

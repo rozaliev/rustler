@@ -1,3 +1,6 @@
+#![feature(plugin)]
+#![plugin(clippy)]
+
 #![feature(fnbox)]
 
 mod future;
