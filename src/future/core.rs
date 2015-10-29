@@ -67,6 +67,14 @@ impl<T: Send+'static, E:Send+'static> Core<T,E> {
     	self.inner_mut().set_result(r)
     }
 
+    pub fn take_result(&mut self) -> Result<T,E> {
+        self.inner_mut().take_result()
+    }
+
+    pub fn executor(&self) -> Arc<Executor> {
+        self.inner().x.as_ref().map(|x| x.clone()).unwrap_or(Arc::new(InlineExecutor::new()))
+    }
+
     #[inline]
     fn inner(&self) -> &Inner<T,E> {
     	unsafe { &*self.inner }
@@ -78,7 +86,18 @@ impl<T: Send+'static, E:Send+'static> Core<T,E> {
     }
 
 
+
+
     
+}
+
+impl<T: Send+'static, E:Send+'static> Clone for Core<T,E> {
+    // TODO: add ref counting
+    fn clone(&self) -> Core<T,E> {
+        Core {
+            inner: self.inner
+        }
+    }
 }
 
 
@@ -161,6 +180,10 @@ impl<T: Send+'static, E:Send+'static> Inner<T,E> {
     		},
     		_ => panic!("invalid state")
     	}	
+    }
+
+    pub fn take_result(&mut self) -> Result<T,E> {
+        self.result.take().expect("needs result")
     }
 
     fn schedule_callback(&mut self) {

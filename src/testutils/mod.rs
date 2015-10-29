@@ -1,5 +1,7 @@
+use std::boxed::FnBox;
 
-pub fn marker() -> (Box<Fn()>, Box<Fn()>) {
+
+pub fn marker() -> (Box<Fn()+Send+'static>, Box<Fn()+Send+'static>) {
 		use std::sync::{Arc, Mutex};
 
 		let m = Arc::new(Mutex::new(false));
