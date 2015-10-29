@@ -44,14 +44,13 @@ pub struct Core<T: Send+'static, E:Send+'static> {
 impl<T: Send+'static, E:Send+'static> Core<T,E> {
 	pub fn new() -> Core<T,E> {
 		Core {
-			inner: unsafe { Box::into_raw(Box::new(Inner::new())) }
+			inner: Box::into_raw(Box::new(Inner::new()))
 		}
 	}
 
-
     pub fn from_result(v: Result<T,E>) -> Core<T,E> {
     	Core {
-    		inner: unsafe { Box::into_raw(Box::new(Inner::from_result(v))) }
+    		inner: Box::into_raw(Box::new(Inner::from_result(v)))
     	}
     }
 
@@ -187,49 +186,31 @@ impl<T: Send+'static, E:Send+'static> Inner<T,E> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	fn marker() -> (Box<Fn()>, Box<Fn()>) {
-		use std::sync::{Arc, Mutex};
-
-		let m = Arc::new(Mutex::new(false));
-		let ma = m.clone();
-
-		let set_marker = move || {
-			let mut l = m.lock().unwrap();
-			*l = true;
-		};
-
-		let assert_marker = move || {
-			let l = ma.lock().unwrap();
-			assert!(*l, "expected marker");
-		};
-
-		(Box::new(set_marker), Box::new(assert_marker))
-	}
+    use testutils::marker;
 
 	#[test]
 	fn from_result() {
-		let c = Inner::<_,()>::from_result(Ok(3));
-		assert_eq!(c.result, Some(Ok(3)));
+		let c = Core::<_,()>::from_result(Ok(3));
+		assert_eq!(c.inner().result, Some(Ok(3)));
 		assert_eq!(c.state(), State::Armed);
 
-		let c = Inner::<usize,_>::from_result(Err(()));
-		assert_eq!(c.result, Some(Err(())));
-		assert_eq!(c.state(), State::Armed);
+		let c = Core::<usize,_>::from_result(Err(()));
+		assert_eq!(c.inner().result, Some(Err(())));
+		assert_eq!(c.inner().state(), State::Armed);
 
 	}
 
 	#[test]
 	fn state() {
-		let c = Inner::<(),()>::new();
-		assert_eq!(c.state(), State::New);
+		let c = Core::<(),()>::new();
+		assert_eq!(c.inner().state(), State::New);
 	}
 
 	#[test]
 	fn lifecycle() {
 		let (set_marker, assert_marker) = marker();
 
-		let mut c = Inner::<usize,()>::new();
+		let mut c = Core::<usize,()>::new();
 		assert_eq!(c.state(), State::New);
 
 		c.set_callback(move |r| {
