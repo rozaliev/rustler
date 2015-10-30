@@ -2,6 +2,7 @@
 #![plugin(clippy)]
 
 #![feature(fnbox)]
+#![feature(const_fn)]
 
 mod future;
 mod executor;

@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::boxed::FnBox;
 
-use executor::{Executor, InlineExecutor};
+use executor::{Executor, DefaultExecutor};
 
 use self::State::*;
 
@@ -69,7 +69,7 @@ impl<T: Send+'static, E:Send+'static> Core<T,E> {
     }
 
     pub fn executor(&self) -> Arc<Executor> {
-        self.inner().x.as_ref().map(|x| x.clone()).unwrap_or(Arc::new(InlineExecutor::new()))
+        self.inner().x.as_ref().map(|x| x.clone()).unwrap_or(Arc::new(DefaultExecutor::new()))
     }
 
     #[inline]
@@ -194,7 +194,7 @@ impl<T: Send+'static, E:Send+'static> Inner<T,E> {
                 x.add(Box::new(move || cb(result)));
             }
             None => {
-                InlineExecutor::new().add(Box::new(move || cb(result)));
+                DefaultExecutor::new().add(Box::new(move || cb(result)));
             }
         }
     }
