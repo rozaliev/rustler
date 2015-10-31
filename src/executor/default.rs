@@ -2,7 +2,7 @@ use std::boxed::FnBox;
 use std::sync::Arc;
 use std::ptr;
 use std::mem;
-use std::sync::{Once, ONCE_INIT};
+use std::sync::{ONCE_INIT, Once};
 
 use super::InlineExecutor;
 
