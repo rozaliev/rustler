@@ -17,22 +17,22 @@ pub struct DefaultExecutor;
 
 impl DefaultExecutor {
     pub fn new() -> DefaultExecutor {
-    	INIT.call_once(|| {
-    		if unsafe { X.is_null() } {
-    			DefaultExecutor::set_executor(Arc::new(InlineExecutor::new()))
-    		}
-		});
+        INIT.call_once(|| {
+            if unsafe { X.is_null() } {
+                DefaultExecutor::set_executor(Arc::new(InlineExecutor::new()))
+            }
+        });
         DefaultExecutor
     }
 
     pub fn set_executor(x: Arc<Executor>) {
-    	let mut n = Box::into_raw(Box::new(x));
-    	unsafe { mem::swap(&mut n, &mut X) };
+        let mut n = Box::into_raw(Box::new(x));
+        unsafe { mem::swap(&mut n, &mut X) }
 
-    	if !n.is_null() {
-    		let b = unsafe { Box::from_raw(n) };
-    		drop(b)
-    	}
+        if !n.is_null() {
+            let b = unsafe { Box::from_raw(n) };
+            drop(b)
+        }
     }
 }
 
