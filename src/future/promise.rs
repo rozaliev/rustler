@@ -20,6 +20,8 @@ impl<T: Send+'static, E: Send+'static> Promise<T,E> {
 }
 
 
+unsafe impl<T: Send+'static, E: Send+'static> Send for Promise<T,E> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
