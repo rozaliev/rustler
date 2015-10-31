@@ -1,6 +1,6 @@
-mod core;
-mod future;
-mod promise;
+pub mod core;
+pub mod future;
+pub mod promise;
 
 
 pub use self::future::{Async, Future};

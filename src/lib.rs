@@ -4,9 +4,9 @@
 #![feature(fnbox)]
 #![feature(const_fn)]
 
-mod future;
-mod executor;
-mod service;
+pub mod future;
+pub mod executor;
+pub mod service;
 
 
 

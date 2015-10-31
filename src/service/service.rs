@@ -1,6 +1,6 @@
 use future::Future;
 
-trait Service<Req,Resp,E>
+pub trait Service<Req,Resp,E>
 where Resp: Send+'static,
 	  E: Send+'static {
 
@@ -17,28 +17,70 @@ where T: Fn(Req) -> Future<Resp,E>,
     }
 }
 
-trait Filter<ReqIn, RespIn, EIn, ReqOut, RespOut, EOut>
+pub trait Filter<ReqIn, RespIn, EIn, ReqOut, RespOut, EOut>
 where RespOut: Send+'static,
       RespIn: Send+'static,
 	  EIn: Send+'static,
 	  EOut: Send+'static  {
-    fn apply<S: Service<ReqOut, RespIn, EIn>>(&self, r: ReqIn, s: S) -> Future<RespOut, EOut>;
+    fn filter<S: Service<ReqOut, RespIn, EIn>>(&self, r: ReqIn, s: S) -> Future<RespOut, EOut>;
 }
 
-trait SimpleFilter<Req,Resp,E>
+pub trait SimpleFilter<Req,Resp,E>
 where Resp: Send+'static,
-      Req: Send+'static,
-      E: Send+'static
-      {
-    fn apply<S: Service<Req, Resp, E>>(&self, r: Req, s: S) -> Future<Resp, E>;
+	  E: Send+'static {
+    fn filter<S: Service<Req, Resp, E>>(&self, r: Req, s: S) -> Future<Resp, E>;
 }
 
-impl<T, Req,Resp,E> Filter<Req,Resp,E, Req, Resp, E> for T
-where T: SimpleFilter<Req,Resp,E>,
-		Resp: Send+'static,
-      Req: Send+'static,
-      E: Send+'static{
-    fn apply<S: Service<Req, Resp, E>>(&self, r: Req, s: S) -> Future<Resp, E> {
-        SimpleFilter::apply(self, r, s)
+impl<T, Req, Resp, E> Filter<Req, Resp, E, Req, Resp, E> for T
+where Req: Send+'static,
+      Resp: Send+'static,
+	  E: Send+'static,
+	  T: SimpleFilter<Req,Resp,E>  {
+
+    fn filter<S: Service<Req, Resp, E>>(&self, r: Req, s: S) -> Future<Resp, E> {
+        SimpleFilter::filter(self, r, s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use future::{Async, Future};
+    use testutils::marker;
+
+    #[test]
+    fn service() {
+        let (set_marker, assert_marker) = marker();
+
+        let s = |r| Future::<_, ()>::value(r);
+
+        s.apply("hello").receive(move |r| {
+            set_marker();
+            assert_eq!(r, Ok("hello"));
+        });
+        assert_marker();
+    }
+
+    fn simple_filter() {
+        let (set_marker, assert_marker) = marker();
+
+        let s = |r| Future::<_, ()>::value(r);
+
+        struct F;
+        impl SimpleFilter<&'static str,&'static str,()> for F {
+            fn filter<S: Service<&'static str, &'static str, ()>>(&self,
+                                                                  r: &'static str,
+                                                                  s: S)
+                                                                  -> Future<&'static str, ()> {
+                s.apply("blabla")
+            }
+        }
+        let f = F;
+
+        Filter::filter(&f, "hello", s).receive(move |r| {
+            set_marker();
+            assert_eq!(r, Ok("blabla"));
+        });
+        assert_marker();
     }
 }
