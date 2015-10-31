@@ -28,12 +28,8 @@ impl<T: Send+'static, E: Send+'static> Future<T,E> {
               G: Send + 'static
     {
         let (future, mut promise) = Promise::pair();
-        if self.is_ready() {
-            let r = self.core.take_result();
-            self.core.executor().add(Box::new(move || promise.resolve(f(r))));
-        } else {
-            self.core.set_callback(move |r| promise.resolve(f(r)));
-        }
+        self.core.set_callback(move |r| promise.resolve(f(r)));
+
 
         future
     }
@@ -47,17 +43,6 @@ mod tests {
     use super::*;
     use testutils::marker;
 
-    #[test]
-    fn value() {
-        let f = Future::<_, ()>::value(3usize);
-        assert!(f.is_ready());
-    }
-
-    #[test]
-    fn error() {
-        let f = Future::<usize, _>::error(());
-        assert!(f.is_ready());
-    }
 
     #[test]
     fn then() {

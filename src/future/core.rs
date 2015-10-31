@@ -117,7 +117,7 @@ impl<T: Send+'static, E:Send+'static> Inner<T,E> {
     pub fn from_result(v: Result<T, E>) -> Inner<T, E> {
         Inner {
             result: Some(v),
-            state: AtomicUsize::new(Armed.into()),
+            state: AtomicUsize::new(NeedsCallback.into()),
             cb: None,
             x: None,
         }
@@ -211,11 +211,11 @@ mod tests {
     fn from_result() {
         let c = Core::<_, ()>::from_result(Ok(3));
         assert_eq!(c.inner().result, Some(Ok(3)));
-        assert_eq!(c.state(), State::Armed);
+        assert_eq!(c.state(), State::NeedsCallback);
 
         let c = Core::<usize, _>::from_result(Err(()));
         assert_eq!(c.inner().result, Some(Err(())));
-        assert_eq!(c.inner().state(), State::Armed);
+        assert_eq!(c.inner().state(), State::NeedsCallback);
 
     }
 
