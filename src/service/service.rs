@@ -61,6 +61,7 @@ mod tests {
         assert_marker();
     }
 
+    #[test]
     fn simple_filter() {
         let (set_marker, assert_marker) = marker();
 
@@ -83,4 +84,5 @@ mod tests {
         });
         assert_marker();
     }
+
 }
