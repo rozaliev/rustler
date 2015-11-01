@@ -1,16 +1,20 @@
 use std::marker::PhantomData;
 
-use pipeline::InboundHandler;
-use pipeline::InboundHandlerContext;
+use pipeline::{InboundHandler, OutboundHandler};
+use pipeline::{InboundHandlerContext, OutboundHandlerContext};
+use pipeline::{InboundPipelineChain, OutboundPipelineChain};
+use pipeline::{NextInbound, NextOutbound};
 
-pub struct Pipeline<I: InboundHandler> {
-	i: Option<InboundPipelineChain<I>>
+pub struct Pipeline<I: InboundHandler, O: OutboundHandler> {
+    i: Option<InboundPipelineChain<I>>,
+	o: Option<OutboundPipelineChain<O>>
 }
 
-impl<I: InboundHandler> Pipeline<I> {
-    pub fn new() -> Pipeline<I> {
+impl<I: InboundHandler, O: OutboundHandler> Pipeline<I, O> {
+    pub fn new() -> Pipeline<I,O> {
     	Pipeline {
-    		i: None
+    		i: None,
+            o: None
     	}
     }
 
@@ -19,46 +23,21 @@ impl<I: InboundHandler> Pipeline<I> {
     	self.i.as_mut().unwrap()
     }
 
+    pub fn outbound(&mut self, o: O) -> &mut OutboundPipelineChain<O> {
+        self.o = Some(OutboundPipelineChain::new(o));
+        self.o.as_mut().unwrap()   
+    }
+
     pub fn read(&self, rin: I::RIn) {
     	self.i.as_ref().unwrap().fire_read(rin);
     }
-}
 
-pub struct InboundPipelineChain<H: InboundHandler>  {
-	h: H,
-	n: Option<Box<Next<H::ROut>>>
-}
-
-impl<H: InboundHandler> InboundPipelineChain<H> {
-    fn new(h: H) -> InboundPipelineChain<H> {
-    	InboundPipelineChain {
-    		h: h,
-    		n: None
-    	}
-    }
-
-    pub fn then<N: InboundHandler<RIn=H::ROut>+'static>(&mut self, n: N) -> &mut Box<InboundPipelineChain<N>> {
-    	use std::mem::transmute;
-
-    	self.n = Some(Box::new(InboundPipelineChain::new(n)));
-    	unsafe { transmute(self.n.as_mut().unwrap()) }
-    }
-
-    pub fn read(&self, rin: H::RIn) {
-    	let mut ctx = InboundHandlerContext::new();
-    	self.h.read::<()>(&mut ctx, rin);
+    pub fn write(&self, win: O::WIn) {
+        self.o.as_ref().unwrap().fire_write(win);
     }
 }
 
-pub trait Next<RIn> {
-	fn fire_read(&self, rin: RIn);
-}
 
-impl<H: InboundHandler> Next<H::RIn> for InboundPipelineChain<H> {
-	fn fire_read(&self, rin: H::RIn) {
-		self.read(rin)
-	}
-}
 
 
 #[cfg(test)]
@@ -66,30 +45,46 @@ mod tests {
 	use std::num::ParseIntError;
 
     use super::*;
-    use pipeline::InboundHandler;
-    use pipeline::InboundHandlerContext;
+    use future::Future;
+    use pipeline::{InboundHandler, OutboundHandler};
+    use pipeline::{InboundHandlerContext, OutboundHandlerContext};
 
     use testutils::marker;
 
-    struct StringToIntInbound { read_f: Box<Fn(&str)> }
+    struct StringToInt { cb: Box<Fn(&str)> }
 
-    impl StringToIntInbound {
-        fn new<F>(f: F) -> StringToIntInbound 
+    impl StringToInt {
+        fn new<F>(f: F) -> StringToInt 
          where F: Fn(&str)+Send+'static
         {
-        	StringToIntInbound {
-        		read_f: Box::new(f)
+        	StringToInt {
+        		cb: Box::new(f)
         	}
         }
     }
 
-    impl InboundHandler for  StringToIntInbound{
+    impl InboundHandler for  StringToInt {
         type RIn = String;
         type ROut = i64;
         type E = ParseIntError;
 
         fn read<WOut: Send+'static>(&self, ctx: &mut InboundHandlerContext<String, i64, ParseIntError, WOut>, i: String) {
-        	self.read_f.call((&i,))
+        	self.cb.call((&i,));
+            let r = i64::from_str_radix(&i, 10);
+            ctx.fire_read(r.unwrap())
+        }
+    }
+
+    impl OutboundHandler for  StringToInt {
+        type WIn = String;
+        type WOut = i64;
+        type E = ParseIntError;
+
+        fn write(&self, ctx: &mut OutboundHandlerContext<String,i64,ParseIntError>, i: String) -> Future<(),ParseIntError>{
+            self.cb.call((&i,));
+            let r = i64::from_str_radix(&i, 10);
+            ctx.fire_write(r.unwrap());
+            Future::value(())
         }
     }
 
@@ -120,30 +115,49 @@ mod tests {
     #[test]
     fn inbound() {
     	let (set_marker, assert_marker) = marker();
-    	let s2int = StringToIntInbound::new(move |s| {
+    	let s2int = StringToInt::new(move |s| {
     		set_marker();
     		assert_eq!(s, "333");
     	});
     	
     	let mut p = Pipeline::new();
     	p.inbound(s2int);
+        p.outbound(StringToInt::new(|_| {}));
     	p.read("333".to_owned());
     	assert_marker();
     }
 
     #[test]
-    fn then() {
+    fn inbound_then() {
     	let (set_marker, assert_marker) = marker();
-    	let s2int = StringToIntInbound::new(|_|{});
+    	let s2int = StringToInt::new(|_|{});
     	let capt = CaptureIntInbound::new(move |r| {
     		assert_eq!(r, 333);
     		set_marker();
     	});
 
     	let mut p = Pipeline::new();
+        p.outbound(StringToInt::new(|_| {}));
     	p.inbound(s2int)
     	.then(capt);
 
     	p.read("333".to_owned());
+        assert_marker();
+    }
+
+    #[test]
+    fn outbound() {
+        let (set_marker, assert_marker) = marker();
+        let s2int = StringToInt::new(move |s| {
+            set_marker();
+            assert_eq!(s, "333");
+        });
+        
+        let mut p = Pipeline::new();
+        p.inbound(StringToInt::new(|_| {}));
+        p.outbound(s2int);
+        
+        p.write("333".to_owned());
+        assert_marker();
     }
 }

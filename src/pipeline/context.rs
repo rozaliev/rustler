@@ -1,15 +1,47 @@
 use std::marker::PhantomData;
 
-pub struct InboundHandlerContext<RIn,ROut,E,WIn>{
+use pipeline::{NextInbound, NextOutbound};
+
+pub struct PipelineContext;
+
+pub struct InboundHandlerContext<'a, RIn,ROut,E,WIn> {
+	n: &'a Option<Box<NextInbound<ROut>>>,
 	phantom: PhantomData<(RIn, ROut, E, WIn)>,
 }
 
-impl<RIn,ROut,E,WIn> InboundHandlerContext<RIn,ROut,E,WIn> {
-    pub fn new() -> InboundHandlerContext<RIn,ROut,E,WIn> {
+impl<'a, RIn,ROut,E,WIn> InboundHandlerContext<'a, RIn,ROut,E,WIn> {
+    pub fn new(n: &'a Option<Box<NextInbound<ROut>>>) -> InboundHandlerContext<'a, RIn,ROut,E,WIn> {
     	InboundHandlerContext {
+    		n: n,
     		phantom: PhantomData
     	}
     }
+
+    pub fn fire_read(&self, rout: ROut) {
+    	if let &Some(ref n) = self.n {
+    		n.fire_read(rout);
+    	}
+    }
+}
+
+pub struct OutboundHandlerContext<'a, WIn,WOut,E> {
+	n: &'a Option<Box<NextOutbound<WOut>>>,
+	phantom: PhantomData<(WIn, WOut, E)>,
+}
+
+impl<'a, WIn,WOut,E> OutboundHandlerContext<'a, WIn,WOut,E> {
+    pub fn new(n: &'a Option<Box<NextOutbound<WOut>>>) -> OutboundHandlerContext<'a, WIn,WOut,E> {
+    	OutboundHandlerContext {
+    		n: n,
+    		phantom: PhantomData
+    	}
+    }
+
+    pub fn fire_write(&self, wout: WOut) {
+		if let &Some(ref n) = self.n {
+    		n.fire_write(wout);
+    	}
+	}
 }
 
 
