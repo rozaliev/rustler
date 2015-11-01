@@ -7,7 +7,12 @@ pub trait InboundHandler {
 	type ROut: Send+'static;
 	type E: Send+'static;
 
-	fn read<WOut: Send+'static>(&self, ctx: &mut InboundHandlerContext<Self::RIn, Self::ROut,Self::E,WOut>, i: Self::RIn);
+    fn read<WOut: Send + 'static>(&self,
+                                  ctx: &mut InboundHandlerContext<Self::RIn,
+                                                                  Self::ROut,
+                                                                  Self::E,
+                                                                  WOut>,
+                                  i: Self::RIn);
 }
 
 pub trait OutboundHandler {
@@ -15,7 +20,10 @@ pub trait OutboundHandler {
 	type WOut: Send+'static;
 	type E: Send+'static;
 
-	fn write(&self, ctx: &mut OutboundHandlerContext<Self::WIn, Self::WOut,Self::E>, i: Self::WIn) -> Future<(),Self::E>;
+    fn write(&self,
+             ctx: &mut OutboundHandlerContext<Self::WIn, Self::WOut, Self::E>,
+             i: Self::WIn)
+             -> Future<(), Self::E>;
 }
 
 
