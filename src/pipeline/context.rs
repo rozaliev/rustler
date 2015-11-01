@@ -4,12 +4,21 @@ use pipeline::{NextInbound, NextOutbound};
 
 pub struct PipelineContext;
 
-pub struct InboundHandlerContext<'a, RIn,ROut,E,WIn> {
+pub struct InboundHandlerContext<'a, RIn,ROut,E,WIn> 
+where RIn: Send+'static,
+	  ROut: Send+'static,
+	  E: Send+'static,
+	  WIn: Send+'static
+	  {
 	n: &'a Option<Box<NextInbound<ROut>>>,
 	phantom: PhantomData<(RIn, ROut, E, WIn)>,
 }
 
-impl<'a, RIn,ROut,E,WIn> InboundHandlerContext<'a, RIn,ROut,E,WIn> {
+impl<'a, RIn,ROut,E,WIn> InboundHandlerContext<'a, RIn,ROut,E,WIn> 
+where RIn: Send+'static,
+	  ROut: Send+'static,
+	  E: Send+'static,
+	  WIn: Send+'static {
     pub fn new(n: &'a Option<Box<NextInbound<ROut>>>) -> InboundHandlerContext<'a, RIn,ROut,E,WIn> {
     	InboundHandlerContext {
     		n: n,
@@ -24,12 +33,20 @@ impl<'a, RIn,ROut,E,WIn> InboundHandlerContext<'a, RIn,ROut,E,WIn> {
     }
 }
 
-pub struct OutboundHandlerContext<'a, WIn,WOut,E> {
+pub struct OutboundHandlerContext<'a, WIn,WOut,E> 
+where WIn: Send+'static,
+	  WOut: Send+'static,
+	  E: Send+'static
+{
 	n: &'a Option<Box<NextOutbound<WOut>>>,
 	phantom: PhantomData<(WIn, WOut, E)>,
 }
 
-impl<'a, WIn,WOut,E> OutboundHandlerContext<'a, WIn,WOut,E> {
+impl<'a, WIn,WOut,E> OutboundHandlerContext<'a, WIn,WOut,E> 
+where WIn: Send+'static,
+	  WOut: Send+'static,
+	  E: Send+'static
+	 {
     pub fn new(n: &'a Option<Box<NextOutbound<WOut>>>) -> OutboundHandlerContext<'a, WIn,WOut,E> {
     	OutboundHandlerContext {
     		n: n,

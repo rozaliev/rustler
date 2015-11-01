@@ -6,7 +6,7 @@ use pipeline::{InboundPipelineChain, OutboundPipelineChain};
 use pipeline::{NextInbound, NextOutbound};
 
 pub struct Pipeline<I: InboundHandler, O: OutboundHandler> {
-    i: Option<InboundPipelineChain<I>>,
+    i: Option<InboundPipelineChain<I,O::WIn>>,
 	o: Option<OutboundPipelineChain<O>>
 }
 
@@ -18,7 +18,7 @@ impl<I: InboundHandler, O: OutboundHandler> Pipeline<I, O> {
     	}
     }
 
-    pub fn inbound(&mut self, i: I) -> &mut InboundPipelineChain<I> {
+    pub fn inbound(&mut self, i: I) -> &mut InboundPipelineChain<I,O::WIn> {
     	self.i = Some(InboundPipelineChain::new(i));
     	self.i.as_mut().unwrap()
     }
