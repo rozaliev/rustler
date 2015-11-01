@@ -78,17 +78,16 @@ mod tests {
     }
 
     impl OutboundHandler for  StringToInt {
-        type WIn = String;
-        type WOut = i64;
-        type E = ParseIntError;
+        type WIn = i64;
+        type WOut = String;
+        type E = ();
 
         fn write(&self,
-                 ctx: &mut OutboundHandlerContext<String, i64, ParseIntError>,
-                 i: String)
-                 -> Future<(), ParseIntError> {
-            self.cb.call((&i,));
-            let r = i64::from_str_radix(&i, 10);
-            ctx.fire_write(r.unwrap());
+                 ctx: &mut OutboundHandlerContext<i64, String, ()>,
+                 i: i64)
+                 -> Future<(), ()> {
+            self.cb.call((&i.to_string(),));
+            ctx.fire_write(i.to_string());
             Future::value(())
         }
     }
@@ -161,7 +160,7 @@ mod tests {
         p.inbound(StringToInt::new(|_| {}));
         p.outbound(s2int);
 
-        p.write("333".to_owned());
+        p.write(333);
         assert_marker();
     }
 }
