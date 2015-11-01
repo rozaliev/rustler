@@ -3,7 +3,7 @@
 
 extern crate rustler;
 
-use rustler::service::{Service, SimpleFilter};
+use rustler::service::{Service, SimpleFilter, Filter};
 use rustler::future::{Async, Future};
 use rustler::pipeline::{InboundHandler, OutboundHandler};
 use rustler::pipeline::{InboundHandlerContext, OutboundHandlerContext};
@@ -18,7 +18,7 @@ fn doubler(x: u64) -> Future<u64, ()> {
 struct RequestLoggerFilter;
 
 impl SimpleFilter<u64, u64, ()> for RequestLoggerFilter {
-    fn filter<S: Service<u64, u64, ()>>(&self, r: u64, s: S) -> Future<u64, ()> {
+    fn filter<S: Service<u64, u64, ()>>(&self, r: u64, s: &S) -> Future<u64, ()> {
         println!("got a request {:?}", r);
         s.apply(r).then(|v| {
             println!("doubled: {}", v);
@@ -77,10 +77,10 @@ impl<F: Fn(u64) -> Future<u64,()> + Send+'static> InboundHandler for SimpleServi
 
 
 fn main() {
-    let s = |i| RequestLoggerFilter.filter(i, doubler);
+    let s = RequestLoggerFilter.then_service(doubler);
 
     let mut p = Pipeline::new();
-    p.inbound(StringToIntHandler).then(SimpleServiceDispatcher::new(move |i| s(i)));
+    p.inbound(StringToIntHandler).then(SimpleServiceDispatcher::new(move |i| s.apply(i)));
     p.outbound(StringToIntHandler);
 
     p.read("111".to_string());
