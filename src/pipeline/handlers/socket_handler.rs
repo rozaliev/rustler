@@ -1,3 +1,5 @@
+use iobuf::{AROIobuf};
+
 use pipeline::{InboundHandler, OutboundHandler};
 use pipeline::{InboundHandlerContext, OutboundHandlerContext};
 use future::Future;
@@ -12,8 +14,8 @@ impl SocketHandler {
 }
 
 impl InboundHandler for SocketHandler {
-	type RIn = ();
-	type ROut = ();
+	type RIn = AROIobuf;
+	type ROut = AROIobuf;
 	type E = ();
 
     fn read<WOut: Send + 'static>(&self,
@@ -22,7 +24,8 @@ impl InboundHandler for SocketHandler {
                                                                   Self::E,
                                                                   WOut>,
                                   i: Self::RIn) {
-
+      debug!("async socker incomming: {:?}", i);
+      ctx.fire_read(i)
     }
 }
 

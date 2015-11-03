@@ -8,6 +8,8 @@
 
 extern crate mio;
 extern crate iobuf;
+#[macro_use]
+extern crate log;
 
 pub mod future;
 pub mod executor;

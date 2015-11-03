@@ -39,6 +39,8 @@ impl<I: InboundHandler, O: OutboundHandler> Pipeline<I, O> {
     pub fn write(&self, win: O::WIn) {
         self.o.as_ref().unwrap().fire_write(win);
     }
+
+    pub fn transport_active(&self) {}
 }
 
 
