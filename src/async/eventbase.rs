@@ -1,31 +1,38 @@
+use std::sync::Arc;
 use mio::*;
 use mio::tcp::*;
 use mio::util::Slab;
+
+use pipeline::{Pipeline, PipelineFactory};
+
+use async::Conn;
 
 const MAX_CONNS_PER_LOOP: usize = 100_000;
 const MAX_ACCEPTOR_THREADS: usize = 10;
 
 pub const SERVER: Token = Token(0);
 
-pub struct EventBase {
+pub struct EventBase<P: PipelineFactory> {
     lst: TcpListener,
-    conns: Slab<Conn>,
+    conns: Slab<Conn<P>>,
+    pipeline: Arc<Pipeline<P::I, P::O>>,
 }
 
-impl EventBase {
-    fn new(lst: TcpListener) -> EventBase {
+impl<P: PipelineFactory> EventBase<P> {
+    fn new(lst: TcpListener, factory: P) -> EventBase<P> {
         EventBase {
             lst: lst,
             conns: Slab::new_starting_at(Token(MAX_ACCEPTOR_THREADS), MAX_CONNS_PER_LOOP),
+            pipeline: Arc::new(P::pipeline()),
         }
     }
 }
 
-impl Handler for EventBase {
+impl<P: PipelineFactory> Handler for EventBase<P> {
     type Timeout = ();
     type Message = ();
 
-    fn ready(&mut self, event_loop: &mut EventLoop<EventBase>, token: Token, events: EventSet) {
+    fn ready(&mut self, event_loop: &mut EventLoop<EventBase<P>>, token: Token, events: EventSet) {
         match token {
             SERVER => {
                 if !events.is_readable() {
@@ -34,13 +41,13 @@ impl Handler for EventBase {
 
                 match self.lst.accept() {
                     Ok(Some(sock)) => {
-                        let token = self.conns.insert_with(|token| Conn::new(sock, token)).unwrap();
-
-                        event_loop.register_opt(&self.conns[token].sock,
-                                                token,
-                                                EventSet::readable(),
-                                                PollOpt::edge() | PollOpt::oneshot())
-                                  .unwrap();
+                        let token = self.conns
+                                        .insert_with(|token| {
+                                            let mut c = Conn::new(sock, token);
+                                            c.transport_active(event_loop);
+                                            c
+                                        })
+                                        .unwrap();
                     }
                     Ok(None) => {}
                     Err(e) => {
@@ -64,25 +71,6 @@ impl Handler for EventBase {
     }
 }
 
-struct Conn {
-    sock: TcpStream,
-    token: Token,
-}
-
-impl Conn {
-    fn new(sock: TcpStream, token: Token) -> Conn {
-        Conn {
-            sock: sock,
-            token: token,
-        }
-    }
-
-    fn readable(&mut self, event_loop: &mut EventLoop<EventBase>) {
-    }
-    fn writable(&mut self, event_loop: &mut EventLoop<EventBase>) {
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -91,6 +79,24 @@ mod tests {
     use mio::*;
     use mio::tcp::*;
 
+    use pipeline::{Pipeline, PipelineFactory};
+    use pipeline::handlers::SocketHandler;
+
+    struct TestPipeline;
+
+    impl PipelineFactory for TestPipeline {
+    	type I = SocketHandler;
+    	type O = SocketHandler;
+
+        fn pipeline() -> Pipeline<SocketHandler, SocketHandler> {
+            let mut p = Pipeline::new();
+            p.inbound(SocketHandler::new());
+            p.outbound(SocketHandler::new());
+
+            p
+        }
+    }
+
     #[test]
     fn init() {
         let lst = TcpListener::bind(&"0.0.0.0:9898".parse().unwrap()).unwrap();
@@ -98,7 +104,7 @@ mod tests {
 
         event_loop.register(&lst, SERVER);
 
-        let mut eb = EventBase::new(lst);
+        let mut eb = EventBase::new(lst, TestPipeline);
 
         event_loop.run_once(&mut eb);
     }

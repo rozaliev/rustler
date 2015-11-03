@@ -5,6 +5,13 @@ use pipeline::{InboundHandlerContext, OutboundHandlerContext};
 use pipeline::{InboundPipelineChain, OutboundPipelineChain};
 use pipeline::{NextInbound, NextOutbound};
 
+pub trait PipelineFactory {
+    type I: InboundHandler;
+    type O: OutboundHandler;
+
+    fn pipeline() -> Pipeline<Self::I, Self::O>;
+}
+
 pub struct Pipeline<I: InboundHandler, O: OutboundHandler> {
     i: Option<InboundPipelineChain<I, O::WIn>>,
     o: Option<OutboundPipelineChain<O>>,
