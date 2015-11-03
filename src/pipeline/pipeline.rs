@@ -92,27 +92,43 @@ mod tests {
         }
     }
 
-    struct CaptureIntInbound {
-        read_f: Box<Fn(i64)>,
+    struct CaptureInt {
+        cb: Box<Fn(i64)>,
     }
 
-    impl CaptureIntInbound {
-        fn new<F>(f: F) -> CaptureIntInbound
+    impl CaptureInt {
+        fn new<F>(f: F) -> CaptureInt
             where F: Fn(i64) + Send + 'static
         {
-            CaptureIntInbound { read_f: Box::new(f) }
+            CaptureInt { cb: Box::new(f) }
         }
     }
 
-    impl InboundHandler for CaptureIntInbound{
+    impl InboundHandler for CaptureInt{
         type RIn = i64;
-        type ROut = ();
+        type ROut = i64;
         type E = ();
 
         fn read<WOut: Send + 'static>(&self,
-                                      ctx: &mut InboundHandlerContext<i64, (), (), WOut>,
+                                      ctx: &mut InboundHandlerContext<i64, i64, (), WOut>,
                                       i: i64) {
-            self.read_f.call((i,));
+            self.cb.call((i,));
+            ctx.fire_read(i);
+        }
+    }
+
+    impl OutboundHandler for CaptureInt {
+        type WIn = i64;
+        type WOut = i64;
+        type E = ();
+
+        fn write(&self,
+                 ctx: &mut OutboundHandlerContext<i64, i64, ()>,
+                 i: i64)
+                 -> Future<(), ()> {
+            self.cb.call((i,));
+            ctx.fire_write(i);
+            Future::value(())
         }
     }
 
@@ -135,7 +151,7 @@ mod tests {
     fn inbound_then() {
         let (set_marker, assert_marker) = marker();
         let s2int = StringToInt::new(|_| {});
-        let capt = CaptureIntInbound::new(move |r| {
+        let capt = CaptureInt::new(move |r| {
             assert_eq!(r, 333);
             set_marker();
         });
@@ -159,6 +175,23 @@ mod tests {
         let mut p = Pipeline::new();
         p.inbound(StringToInt::new(|_| {}));
         p.outbound(s2int);
+
+        p.write(333);
+        assert_marker();
+    }
+
+    #[test]
+    fn outbound_then() {
+        let (set_marker, assert_marker) = marker();
+        let s2int = StringToInt::new(move |s| {
+            set_marker();
+            assert_eq!(s, "333");
+        });
+        let capt = CaptureInt::new(move |_| {});
+
+        let mut p = Pipeline::new();
+        p.inbound(StringToInt::new(|_| {}));
+        p.outbound(capt).then(s2int);
 
         p.write(333);
         assert_marker();
