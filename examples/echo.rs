@@ -7,7 +7,6 @@ extern crate env_logger;
 use rustler::pipeline::{Pipeline, PipelineFactory};
 use rustler::pipeline::handlers::SocketHandler;
 use rustler::async::EventBase;
-use rustler::async::eventbase;
 use rustler::pipeline::{InboundHandlerContext, InboundHandler};
 
 
@@ -51,11 +50,11 @@ impl PipelineFactory for EchoPipeline {
 fn main() {
     let _ = env_logger::init();
 
-    
+
     let lst = TcpListener::bind(&"0.0.0.0:9999".parse().unwrap()).unwrap();
     let mut event_loop = mio::EventLoop::new().unwrap();
 
-    event_loop.register(&lst, eventbase::SERVER);
+    event_loop.register(&lst, Token(0));
 
     let mut eb = EventBase::new(lst, EchoPipeline);
 

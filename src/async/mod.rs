@@ -1,4 +1,4 @@
-pub mod eventbase;
+mod eventbase;
 mod conn;
 mod write_chain;
 
