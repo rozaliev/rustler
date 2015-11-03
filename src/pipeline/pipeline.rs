@@ -122,10 +122,7 @@ mod tests {
         type WOut = i64;
         type E = ();
 
-        fn write(&self,
-                 ctx: &mut OutboundHandlerContext<i64, i64, ()>,
-                 i: i64)
-                 -> Future<(), ()> {
+        fn write(&self, ctx: &mut OutboundHandlerContext<i64, i64, ()>, i: i64) -> Future<(), ()> {
             self.cb.call((i,));
             ctx.fire_write(i);
             Future::value(())

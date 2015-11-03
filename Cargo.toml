@@ -6,3 +6,5 @@ authors = ["Evgeny Rozaliev <rozaliev@gmail.com>"]
 
 [dependencies]
 clippy = "0.0.22"
+iobuf = "*"
+mio = "*"

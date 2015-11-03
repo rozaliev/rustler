@@ -8,29 +8,27 @@ where Resp: Send+'static,
     fn apply(&self, r: Req) -> Future<Resp, E>;
 }
 
-struct ConstService<Req,Resp,E> 
-where Resp: Send+'static,
-      E: Send+'static
+struct ConstService<Req, Resp, E>
+    where Resp: Send + 'static,
+          E: Send + 'static
 {
-    f: Box<Fn(Req) -> Future<Resp,E>+ Send+'static>
+    f: Box<Fn(Req) -> Future<Resp, E> + Send + 'static>,
 }
 
 
-impl<Req,Resp,E>  ConstService<Req,Resp,E> 
+impl<Req,Resp,E>  ConstService<Req,Resp,E>
 where Resp: Send+'static,
       E: Send+'static
 {
-    fn new<F>(f: F) -> ConstService<Req,Resp,E> 
-    where F: Fn(Req) -> Future<Resp,E>+ Send+'static
+    fn new<F>(f: F) -> ConstService<Req, Resp, E>
+        where F: Fn(Req) -> Future<Resp, E> + Send + 'static
     {
-        ConstService {
-            f: Box::new(f)
-        }
+        ConstService { f: Box::new(f) }
     }
 }
 
 
-impl<Req,Resp,E> Service<Req,Resp,E> for ConstService<Req,Resp,E> 
+impl<Req,Resp,E> Service<Req,Resp,E> for ConstService<Req,Resp,E>
 where Resp: Send+'static,
       E: Send+'static
 {
@@ -58,10 +56,11 @@ where RespOut: Send+'static,
       Self: Sized+Send+'static  {
     fn filter<S: Service<ReqOut, RespIn, EIn>>(&self, r: ReqIn, s: &S) -> Future<RespOut, EOut>;
 
-    fn then_service<S: Service<ReqOut, RespIn, EIn>+Send+'static>(self, s: S) -> ConstService<ReqIn, RespOut, EOut> {
-        ConstService::new(move |r| {
-            self.filter(r, &s)
-        })
+    fn then_service<S: Service<ReqOut, RespIn, EIn> + Send + 'static>
+                                                                      (self,
+                                                                       s: S)
+                                                                       -> ConstService<ReqIn, RespOut, EOut> {
+        ConstService::new(move |r| self.filter(r, &s))
     }
 }
 
@@ -117,7 +116,7 @@ mod tests {
         let (set_marker, assert_marker) = marker();
 
         let s = |r| Future::<_, ()>::value(r);
-        
+
         let f = F;
 
         Filter::filter(&f, "hello", &s).receive(move |r| {
