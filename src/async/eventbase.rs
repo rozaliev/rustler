@@ -7,7 +7,7 @@ use iobuf::AROIobuf;
 
 
 use pipeline::{Pipeline, PipelineFactory};
-use pipeline::{InboundHandler};
+use pipeline::InboundHandler;
 
 use async::Conn;
 
@@ -16,18 +16,17 @@ const MAX_ACCEPTOR_THREADS: usize = 10;
 
 pub const SERVER: Token = Token(0);
 
-pub struct EventBase<P: PipelineFactory> 
-where 
-    P::I: InboundHandler<RIn=AROIobuf> 
+pub struct EventBase<P: PipelineFactory>
+    where P::I: InboundHandler<RIn = AROIobuf>
 {
     lst: TcpListener,
     conns: Slab<Conn<P>>,
     pipeline: Arc<Pipeline<P::I, P::O>>,
 }
 
-impl<P: PipelineFactory> EventBase<P> 
-where 
-    P::I: InboundHandler<RIn=AROIobuf> 
+impl<P: PipelineFactory> EventBase<P>
+where
+    P::I: InboundHandler<RIn=AROIobuf>
 {
     pub fn new(lst: TcpListener, factory: P) -> EventBase<P> {
         EventBase {
@@ -38,9 +37,9 @@ where
     }
 }
 
-impl<P: PipelineFactory> Handler for EventBase<P> 
-where 
-    P::I: InboundHandler<RIn=AROIobuf> 
+impl<P: PipelineFactory> Handler for EventBase<P>
+where
+    P::I: InboundHandler<RIn=AROIobuf>
 {
     type Timeout = ();
     type Message = ();
@@ -56,9 +55,7 @@ where
                     Ok(Some(sock)) => {
                         debug!("incomming connection from: {:?}", sock.peer_addr());
 
-                        let token = self.conns
-                                        .insert_with(|token| {  Conn::new(sock, token) })
-                                        .unwrap();
+                        let token = self.conns.insert_with(|token| Conn::new(sock, token)).unwrap();
                         self.conns[token].transport_active(event_loop, &self.pipeline);
                     }
                     Ok(None) => {}
@@ -78,7 +75,7 @@ where
                     }
 
                     if self.conns[token].is_closed() {
-                        self.conns.remove(token);    
+                        self.conns.remove(token);
                     }
                 }
             }	

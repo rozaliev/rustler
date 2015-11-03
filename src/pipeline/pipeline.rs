@@ -40,7 +40,8 @@ impl<I: InboundHandler, O: OutboundHandler> Pipeline<I, O> {
         self.o.as_ref().unwrap().fire_write(win);
     }
 
-    pub fn transport_active(&self) {}
+    pub fn transport_active(&self) {
+    }
 }
 
 

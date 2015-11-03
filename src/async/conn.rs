@@ -6,26 +6,25 @@ use mio::tcp::*;
 
 use pipeline::InboundHandler;
 
-use iobuf::{AppendBuf, Iobuf, AROIobuf};
+use iobuf::{AROIobuf, AppendBuf, Iobuf};
 
 const READ_BUF_SIZE: usize = 2048;
 
 use pipeline::{Pipeline, PipelineFactory};
 use async::EventBase;
 
-pub struct Conn<P: PipelineFactory> 
-where 
-    P::I: InboundHandler<RIn=AROIobuf> 
+pub struct Conn<P: PipelineFactory>
+    where P::I: InboundHandler<RIn = AROIobuf>
 {
     sock: TcpStream,
     token: Token,
     p: PhantomData<P>,
     buf: AppendBuf<'static>,
-    is_closed: bool
+    is_closed: bool,
 }
 
 impl<P: PipelineFactory> Conn<P>
-where 
+where
     P::I: InboundHandler<RIn=AROIobuf> {
     pub fn new(sock: TcpStream, token: Token) -> Conn<P> {
         Conn {
@@ -33,15 +32,19 @@ where
             token: token,
             p: PhantomData,
             buf: AppendBuf::new(READ_BUF_SIZE),
-            is_closed: false
+            is_closed: false,
         }
     }
 
-    pub fn transport_active(&mut self, event_loop: &mut EventLoop<EventBase<P>>, pipeline: &Pipeline<P::I,P::O>) {
+    pub fn transport_active(&mut self,
+                            event_loop: &mut EventLoop<EventBase<P>>,
+                            pipeline: &Pipeline<P::I, P::O>) {
         pipeline.transport_active();
         self.register(event_loop);
     }
-    pub fn readable(&mut self, event_loop: &mut EventLoop<EventBase<P>>, pipeline: &Pipeline<P::I,P::O>) {
+    pub fn readable(&mut self,
+                    event_loop: &mut EventLoop<EventBase<P>>,
+                    pipeline: &Pipeline<P::I, P::O>) {
         if self.buf.len() == 0 {
             self.buf = AppendBuf::new(READ_BUF_SIZE);
         }
@@ -50,12 +53,14 @@ where
             Ok(Some(0)) => {
                 debug!("conn token {:?} EOF", self.token);
                 // EOF
-                self.is_closed = true   
+                self.is_closed = true
             }
             Ok(Some(n)) => {
                 debug!("conn token read {:?} bytes", n);
                 self.buf.advance(n as u32);
-                let new_data = self.buf.atomic_slice_from(-(n as i32)-1).expect("can't get atomic buf");
+                let new_data = self.buf
+                                   .atomic_slice_from(-(n as i32) - 1)
+                                   .expect("can't get atomic buf");
 
                 pipeline.read(new_data);
                 self.register(event_loop);
@@ -71,7 +76,9 @@ where
             }       
         }
     }
-    pub fn writable(&mut self, event_loop: &mut EventLoop<EventBase<P>>, pipeline: &Pipeline<P::I,P::O>) {
+    pub fn writable(&mut self,
+                    event_loop: &mut EventLoop<EventBase<P>>,
+                    pipeline: &Pipeline<P::I, P::O>) {
     }
 
     pub fn is_closed(&self) -> bool {

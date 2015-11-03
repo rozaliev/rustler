@@ -1,4 +1,4 @@
-use iobuf::{AROIobuf};
+use iobuf::AROIobuf;
 
 use pipeline::{InboundHandler, OutboundHandler};
 use pipeline::{InboundHandlerContext, OutboundHandlerContext};
@@ -24,8 +24,8 @@ impl InboundHandler for SocketHandler {
                                                                   Self::E,
                                                                   WOut>,
                                   i: Self::RIn) {
-      debug!("async socker incomming: {:?}", i);
-      ctx.fire_read(i)
+        debug!("async socker incomming: {:?}", i);
+        ctx.fire_read(i)
     }
 }
 
